@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Bot, CheckCircle, FileText, ArrowRight, Sparkles, Target, TrendingUp, Shield, Users, Clock, Briefcase } from 'lucide-react';
+import { Bot, CheckCircle, FileText, ArrowRight, Target, TrendingUp, Shield, Users, Clock, Briefcase } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const LandingPage: React.FC = () => {
@@ -12,10 +12,6 @@ const LandingPage: React.FC = () => {
             {/* ── Hero ── */}
             <section className="section">
                 <div className="container text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-sm font-medium mb-8 animate-fade-in">
-                        <Sparkles size={14} />
-                        Powered by Google Gemini AI
-                    </div>
 
                     <h1 className="animate-fade-in" style={{ fontSize: 'clamp(2.2rem, 5vw, 3.75rem)' }}>
                         Land Your Dream Job<br />Faster Than Ever

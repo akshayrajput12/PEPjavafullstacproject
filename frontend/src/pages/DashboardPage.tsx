@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { userApi, resumeService } from '../services/api';
-import { User, Briefcase, FileText, MapPin, Globe, Loader2, Save } from 'lucide-react';
+import { User, Briefcase, FileText, MapPin, Globe, Loader2, Save, CheckCircle } from 'lucide-react';
 
 interface UserProfile {
     name: string;
