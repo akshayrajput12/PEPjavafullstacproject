@@ -40,8 +40,14 @@ const DashboardPage: React.FC = () => {
         try {
             const response = await userApi.getProfile();
             setProfile(response.data);
-        } catch (error) {
-            console.error('Failed to fetch profile', error);
+        } catch (error: any) {
+            const status = error?.response?.status;
+            if (status === 401 || status === 403) {
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+            } else {
+                console.error('Failed to fetch profile', error);
+            }
         } finally {
             setLoading(false);
         }

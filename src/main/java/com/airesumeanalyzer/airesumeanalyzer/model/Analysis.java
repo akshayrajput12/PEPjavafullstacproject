@@ -1,18 +1,21 @@
 package com.airesumeanalyzer.airesumeanalyzer.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "analyses")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Analysis {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "resume_id", nullable = false)
+    @JsonIgnoreProperties({"user", "extractedText", "hibernateLazyInitializer", "handler"})
     private Resume resume;
 
     @Lob
@@ -23,7 +26,7 @@ public class Analysis {
 
     @Lob
     @Column(columnDefinition = "LONGTEXT")
-    private String result; // JSON string of the analysis
+    private String result;
 
     private LocalDateTime createdAt;
 
@@ -43,51 +46,21 @@ public class Analysis {
         this.createdAt = createdAt;
     }
 
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public Resume getResume() { return resume; }
+    public void setResume(Resume resume) { this.resume = resume; }
 
-    public Resume getResume() {
-        return resume;
-    }
+    public String getJobDescription() { return jobDescription; }
+    public void setJobDescription(String jobDescription) { this.jobDescription = jobDescription; }
 
-    public void setResume(Resume resume) {
-        this.resume = resume;
-    }
+    public Double getScore() { return score; }
+    public void setScore(Double score) { this.score = score; }
 
-    public String getJobDescription() {
-        return jobDescription;
-    }
+    public String getResult() { return result; }
+    public void setResult(String result) { this.result = result; }
 
-    public void setJobDescription(String jobDescription) {
-        this.jobDescription = jobDescription;
-    }
-
-    public Double getScore() {
-        return score;
-    }
-
-    public void setScore(Double score) {
-        this.score = score;
-    }
-
-    public String getResult() {
-        return result;
-    }
-
-    public void setResult(String result) {
-        this.result = result;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

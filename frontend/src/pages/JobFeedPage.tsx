@@ -16,14 +16,12 @@ interface Job {
     matchScore: number;
     company_logo: string;
     date: string;
-    // enriched fields (may not always come from backend)
     salary?: string;
     jobType?: string;
     remote?: boolean;
     experience?: string;
 }
 
-// Enrich jobs client-side with realistic-feeling data when backend doesn't provide it
 const SALARY_RANGES = ['₹8–12 LPA', '₹12–18 LPA', '₹18–25 LPA', '₹25–40 LPA', '$80k–$110k', '$110k–$150k'];
 const JOB_TYPES = ['Full-time', 'Full-time', 'Full-time', 'Contract', 'Part-time'];
 const EXPERIENCE = ['0–2 years', '2–5 years', '3–6 years', '5–8 years', '8+ years'];
@@ -39,6 +37,15 @@ function enrichJob(job: Job, idx: number): Job {
 }
 
 const FILTER_TYPES = ['All', 'Full-time', 'Contract', 'Remote', 'Part-time'];
+
+// Fallback mock jobs shown when the live API is unavailable / rate-limited
+const MOCK_JOBS: Job[] = [
+    { id: 'm1', position: 'Senior React Developer', company: 'TechCorp', location: 'Remote', tags: ['React', 'TypeScript', 'Node.js', 'GraphQL'], description: '', url: '#', matchScore: 92, company_logo: '', date: new Date().toISOString() },
+    { id: 'm2', position: 'Full-Stack Engineer', company: 'Startup Inc', location: 'Bangalore, IN', tags: ['Java', 'Spring Boot', 'React', 'MySQL'], description: '', url: '#', matchScore: 85, company_logo: '', date: new Date().toISOString() },
+    { id: 'm3', position: 'Backend Java Developer', company: 'Enterprise Ltd', location: 'Mumbai, IN', tags: ['Java', 'Spring', 'MySQL', 'REST', 'Docker'], description: '', url: '#', matchScore: 78, company_logo: '', date: new Date().toISOString() },
+    { id: 'm4', position: 'Cloud DevOps Engineer', company: 'CloudSystems', location: 'Remote', tags: ['AWS', 'Docker', 'Kubernetes', 'CI/CD', 'Terraform'], description: '', url: '#', matchScore: 65, company_logo: '', date: new Date().toISOString() },
+    { id: 'm5', position: 'Data Engineer', company: 'Analytics Co', location: 'Hyderabad, IN', tags: ['Python', 'Spark', 'SQL', 'Airflow', 'Kafka'], description: '', url: '#', matchScore: 55, company_logo: '', date: new Date().toISOString() },
+];
 
 const MatchBadge: React.FC<{ score: number }> = ({ score }) => {
     if (score >= 80) return (
@@ -61,6 +68,8 @@ const MatchBadge: React.FC<{ score: number }> = ({ score }) => {
 const JobFeedPage: React.FC = () => {
     const [jobs, setJobs] = useState<Job[]>([]);
     const [loading, setLoading] = useState(true);
+    const [authError, setAuthError] = useState(false);
+    const [usingMockData, setUsingMockData] = useState(false);
     const [search, setSearch] = useState('');
     const [activeFilter, setActiveFilter] = useState('All');
     const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
@@ -71,12 +80,24 @@ const JobFeedPage: React.FC = () => {
     }, []);
 
     const fetchJobs = async () => {
+        setLoading(true);
+        setAuthError(false);
+        setUsingMockData(false);
         try {
             const response = await jobApi.getJobs();
             const enriched = (response.data as Job[]).map(enrichJob);
             setJobs(enriched);
-        } catch (error) {
-            console.error('Failed to fetch jobs', error);
+        } catch (err: any) {
+            const status = err?.response?.status;
+            if (status === 401 || status === 403) {
+                // JWT missing or expired — show sign-in prompt
+                setAuthError(true);
+            } else {
+                // External/network error — fall back to sample jobs
+                console.warn('Live job feed unavailable, showing sample data:', err?.message);
+                setJobs(MOCK_JOBS.map(enrichJob));
+                setUsingMockData(true);
+            }
         } finally {
             setLoading(false);
         }
@@ -93,7 +114,8 @@ const JobFeedPage: React.FC = () => {
     const filtered = jobs
         .filter(j => {
             const q = search.toLowerCase();
-            const matchesSearch = !q || j.position.toLowerCase().includes(q) ||
+            const matchesSearch = !q ||
+                j.position.toLowerCase().includes(q) ||
                 j.company.toLowerCase().includes(q) ||
                 j.location.toLowerCase().includes(q) ||
                 j.tags.some(t => t.toLowerCase().includes(q));
@@ -103,10 +125,33 @@ const JobFeedPage: React.FC = () => {
             return matchesSearch && matchesFilter;
         })
         .sort((a, b) =>
-            sortBy === 'match' ? b.matchScore - a.matchScore : new Date(b.date).getTime() - new Date(a.date).getTime()
+            sortBy === 'match'
+                ? b.matchScore - a.matchScore
+                : new Date(b.date).getTime() - new Date(a.date).getTime()
         );
 
     const topMatch = filtered.length > 0 ? filtered[0].matchScore : 0;
+
+    // ── Auth error state ──────────────────────────────────────────────
+    if (!loading && authError) {
+        return (
+            <div className="min-h-screen flex items-center justify-center" style={{ paddingTop: '80px' }}>
+                <div className="glass-panel text-center" style={{ padding: '3rem 2rem', maxWidth: '440px' }}>
+                    <div style={{ background: 'rgba(99,102,241,0.12)', display: 'inline-flex', padding: '1.25rem', borderRadius: '50%', marginBottom: '1.25rem' }}>
+                        <Briefcase className="h-10 w-10 text-indigo-400" />
+                    </div>
+                    <h2 style={{ fontSize: '1.5rem', marginBottom: '0.75rem', color: 'var(--text-primary)' }}>Sign in to view Jobs</h2>
+                    <p style={{ fontSize: '0.95rem', marginBottom: '2rem', color: 'var(--text-secondary)' }}>
+                        You need to be logged in to access your personalised job listings.
+                    </p>
+                    <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                        <a href="/login" className="btn btn-primary">Sign In</a>
+                        <a href="/register" className="btn btn-secondary">Create Account</a>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen" style={{ paddingTop: '80px' }}>
@@ -120,8 +165,16 @@ const JobFeedPage: React.FC = () => {
                                 Job Opportunities
                             </h1>
                             <p style={{ fontSize: '0.95rem', margin: 0 }}>
-                                {loading ? 'Finding your best matches…' : `${filtered.length} role${filtered.length !== 1 ? 's' : ''} match your profile${topMatch > 0 ? ` · Top match ${topMatch}%` : ''}`}
+                                {loading
+                                    ? 'Finding your best matches…'
+                                    : `${filtered.length} role${filtered.length !== 1 ? 's' : ''} match your profile${topMatch > 0 ? ` · Top match ${topMatch}%` : ''}`
+                                }
                             </p>
+                            {usingMockData && (
+                                <p style={{ fontSize: '0.8rem', marginTop: '0.4rem', color: '#f59e0b' }}>
+                                    ⚠ Showing sample jobs — live feed temporarily unavailable
+                                </p>
+                            )}
                         </div>
 
                         {/* Sort selector */}
@@ -203,7 +256,11 @@ const JobFeedPage: React.FC = () => {
                             <article
                                 key={job.id}
                                 className="glass-card group"
-                                style={{ padding: '1.5rem', transition: 'transform 0.2s, border-color 0.2s', borderColor: idx === 0 && sortBy === 'match' ? 'rgba(99,102,241,0.3)' : undefined }}
+                                style={{
+                                    padding: '1.5rem',
+                                    transition: 'transform 0.2s, border-color 0.2s',
+                                    borderColor: idx === 0 && sortBy === 'match' ? 'rgba(99,102,241,0.3)' : undefined
+                                }}
                             >
                                 {/* Top ribbon for best match */}
                                 {idx === 0 && sortBy === 'match' && job.matchScore >= 70 && (

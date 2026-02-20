@@ -47,9 +47,28 @@ const AnalysisPage: React.FC = () => {
             }
 
             setResult(analysisData);
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            setError('Analysis failed. Please try again.');
+            const status = err?.response?.status;
+            const serverError = err?.response?.data?.error;
+            if (err?.code === 'ERR_NETWORK' || !err?.response) {
+                setError('Cannot connect to server. Please ensure the backend is running on port 8080.');
+            } else if (status === 401 || status === 403) {
+                // Token is stale or invalid — clear it and redirect to login
+                localStorage.removeItem('token');
+                setError('Your session has expired. Please sign in again. Redirecting...');
+                setTimeout(() => { window.location.href = '/login'; }, 2000);
+            } else if (status === 400) {
+                setError(serverError || 'Bad request. Please check your resume and job description.');
+            } else if (status === 500) {
+                setError(serverError
+                    ? `AI Analysis Error: ${serverError}`
+                    : 'AI analysis failed on the server. Please try again.');
+            } else if (status === 404) {
+                setError('Resume not found. Please re-upload your resume and try again.');
+            } else {
+                setError(serverError || 'Analysis failed. Please try again.');
+            }
         } finally {
             setLoading(false);
         }

@@ -11,7 +11,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/analyze")
@@ -30,10 +32,22 @@ public class AnalysisController {
     }
 
     @PostMapping("/{resumeId}")
-    public ResponseEntity<Analysis> analyzeResume(@PathVariable Long resumeId, @RequestBody AnalysisRequest request) {
+    public ResponseEntity<?> analyzeResume(@PathVariable Long resumeId, @RequestBody AnalysisRequest request) {
         try {
+            System.out.println("=== AnalysisController.analyzeResume called for resumeId=" + resumeId + " ===");
+
             Resume resume = resumeService.getResumeById(resumeId);
+            System.out.println("Resume found: " + resume.getFileName());
+            System.out.println("Extracted text length: " + (resume.getExtractedText() != null ? resume.getExtractedText().length() : 0));
+
+            if (resume.getExtractedText() == null || resume.getExtractedText().trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Resume text is empty. The file may not have been parsed correctly. Please re-upload your resume.");
+                return ResponseEntity.badRequest().body(error);
+            }
+
             String analysisResultJson = geminiService.analyzeResume(resume.getExtractedText(), request.getJobDescription());
+            System.out.println("Gemini analysis complete. Result: " + analysisResultJson);
 
             Analysis analysis = new Analysis();
             analysis.setResume(resume);
@@ -41,16 +55,28 @@ public class AnalysisController {
             analysis.setResult(analysisResultJson);
 
             // Extract score from JSON
-            JsonNode root = objectMapper.readTree(analysisResultJson);
-            if (root.has("score")) {
-                analysis.setScore(root.get("score").asDouble());
+            try {
+                JsonNode root = objectMapper.readTree(analysisResultJson);
+                if (root.has("score")) {
+                    analysis.setScore(root.get("score").asDouble());
+                }
+            } catch (Exception jsonEx) {
+                System.err.println("Could not parse score from analysis JSON: " + jsonEx.getMessage());
+                // Continue with score=0 rather than failing completely
+                analysis.setScore(0.0);
             }
 
-            return ResponseEntity.ok(analysisRepository.save(analysis));
+            Analysis saved = analysisRepository.save(analysis);
+            System.out.println("Analysis saved with id=" + saved.getId());
+            return ResponseEntity.ok(saved);
+
         } catch (Exception e) {
             System.err.println("ERROR in AnalysisController.analyzeResume:");
             e.printStackTrace();
-            return ResponseEntity.internalServerError().build();
+
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage() != null ? e.getMessage() : "Unknown error during analysis");
+            return ResponseEntity.internalServerError().body(error);
         }
     }
 
